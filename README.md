@@ -1,0 +1,2 @@
+# asterisk-cartographer
+This is the tool for building game data for the Asterisk game to use. Idealy, this tool will let content-creators create game content with minimal programming needed. There is a lot to be done still, so stick around and feel free to help out. 
