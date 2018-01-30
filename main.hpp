@@ -1,5 +1,10 @@
-extern sf::Font font;
-extern sf::RenderTexture windowTexture;
+#define NUM_TILES 255 // (2 ^ 8)
+
+#define NUM_TEXTURES 512 // (2 ^ 16 )
+#define NUM_TEXTURES_DEFINED 16
+
+#define S_HEIGHT 600
+#define S_WIDTH 800
 
 typedef struct coord_t {
     int x;
@@ -12,6 +17,7 @@ typedef struct item_t {
     bool unuseable;
     char data[10];
     int data_len;
+    int tex_id;
 };
 
 // does not yet support giving/taking items
@@ -129,3 +135,16 @@ typedef struct entity {
     int type; // 0 = station, 1 = asteroid, 2 = enemy, 3 = debris, 4 = ice station, 6 = planet, 5 = rocket (player), 6 = rocket (other)
     int id;
 };
+
+bool process_window(sf::RenderWindow &window);
+
+extern sf::Font font;
+extern sf::RenderTexture windowTexture;
+
+extern int tile_tex_assoc[NUM_TILES];
+
+extern sf::Texture textures[512];
+
+extern std::vector<item_t> item_vector;
+extern std::vector<npc_t> npc_vector;
+extern std::vector<map_t> map_vector;

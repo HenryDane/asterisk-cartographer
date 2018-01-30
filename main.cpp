@@ -17,52 +17,10 @@ std::vector<map_t> map_vector;
 std::vector<npc_t> npc_vector;
 std::vector<item_t> item_vector;
 
-int main(){
-    srand( time ( NULL ) ); // initalize random
+// target ids (all ids are unique)
+int id_current = 0;
 
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Asterisk Cartographer v0"); // create window
-
-    // prepare window texture
-    if(!windowTexture.create(800, 600)){
-        printf("Failed to build main window texture");
-        return -5;
-    }
-
-    if (!font.loadFromFile("res/telegrama_raw.ttf")) return -1;
-
-    while (window.isOpen()) { // game loop
-        sf::Event event;
-        while (window.pollEvent(event)){ // event loop
-            if (event.type == sf::Event::Closed) { // check for close request
-                window.close(); // close window
-            } else if (event.type == sf::Event::KeyReleased){ // check keypresses (release only because why not hack)
-                switch (event.key.code){
-                    case sf::Keyboard::Escape: return 0; // exit
-                    default:
-                        printf(".");
-                }
-            }
-        }
-
-        switch (state){
-            case 0:
-                // main menu
-                draw_main_menu();
-                break;
-        }
-
-        windowTexture.display(); // finish up windowTexture
-        const sf::Texture& texture = windowTexture.getTexture(); // build texture object
-        sf::Sprite sprite(texture); // build sprite
-        sprite.setPosition(0,0); // place sprite
-
-        window.clear();
-        window.draw(sprite); // draw window sprite
-        window.display();
-    }
-
-    return 0;
-}
+sf::Texture textures[NUM_TEXTURES];
 
 // reads in the gamefile
 bool read_gamefile(){
@@ -131,4 +89,129 @@ bool write_header_file(){
     std::ofstream npc_header ("action_functions.h");
 
     return true;
+}
+
+
+int main(){
+    srand( time ( NULL ) ); // initalize random
+
+    sf::RenderWindow window(sf::VideoMode(S_WIDTH, S_HEIGHT), "Asterisk Cartographer v0"); // create window
+
+    if(!windowTexture.create(S_WIDTH, S_HEIGHT)){ // prepare window texture
+        printf("Failed to build main window texture \n");
+        return -5;
+    }
+
+    printf("Reading %d texture files \n", NUM_TEXTURES_DEFINED);
+    for (int i = 0; i < NUM_TEXTURES_DEFINED; i++){ // loop through and load textures
+        char tmp[80];
+        sprintf(tmp, "res/%d.png" , i);
+        if (!textures[i].loadFromFile(tmp)){
+            printf("-%d-", i);
+        } else {
+            printf("[%d]", i);
+        }
+    }
+    printf("\n");
+
+    printf("Loading font . . . \n");
+    if (!font.loadFromFile("res/telegrama_raw.ttf")) return -1; // set up font
+
+    item_vector.push_back((item_t) {12, 3, false, "Flower", 6, 12}); // add a dummy item
+
+    char tmp[80]; // temp data
+
+    while (true){
+        int choice = 0; // choice
+        switch (state){
+            case 0: // main menu
+                printf("Main menu: \n 1 - View all textures \n 2 - Select a map to view \n 3 - Select a quest to edit \n 4 - Select an item to edit \n 5 - View all items \n 6 - Hide window \n 0 - Save menu \n");
+                scanf("%d", &choice);
+                char str[80];
+                switch (choice){
+                    case 0: // exit
+                        printf("Save to file? [Y/N]: ");
+                        scanf("%2s", str);
+                        if (str[0] == 'Y' || str[0] == 'y'){
+                            printf("Saving . . . \n");
+                            printf("Exiting . . . \n");
+                            return 0;
+                        } else if (str[0] == 'N' || str[0] == 'n'){
+                            printf("Exiting . . . \n");
+                            return 0;
+                        } else {
+                            state = 0;
+                        }
+                        break;
+                    case 1: // view textures
+                        state = 1;
+                        break;
+                    case 2: // select map
+                        state = 2;
+                        break;
+                    case 3: // select quest
+                        state = 3;
+                        break;
+                    case 4: // select item
+                        state = 4;
+                        break;
+                    case 5: // view all items
+                        state = 5;
+                        break;
+                    case 6:
+                        window.setVisible(false);
+                        break;
+                    default: // something else
+                        printf("Unknown Option \n");
+                }
+                break;
+            case 1: // texture menu
+                printf("Texture menu: \n 1 - Edit a texture \n 0 - Go back \n");
+                scanf("%d", &choice);
+                switch (choice){
+                    case 0:
+                        state = 0;
+                        break;
+                    case 1:
+                        state = 6;
+                        break;
+                }
+                break;
+            case 2: // map select menu
+                printf("Map select menu: \n 1 - Enter map id \n 0 - Go back \n");
+                scanf("%d", &choice);
+                switch (choice){
+                    case 0:
+                        state = 0;
+                        break;
+                    case 1:
+                        scanf("%d", id_current);
+                        state = 7;
+                        break;
+                }
+                break;
+            default:
+                printf("Error condition of state [%d]", state);
+        }
+
+        // process window events
+        sf::Event event;
+        while (window.pollEvent(event)){ // event loop
+            if (event.type == sf::Event::Closed) { // check for close request
+                window.close(); // close window
+            }
+        }
+
+        windowTexture.display(); // finish up windowTexture
+        const sf::Texture& texture = windowTexture.getTexture(); // build texture object
+        sf::Sprite sprite(texture); // build sprite
+        sprite.setPosition(0,0); // place sprite
+
+        window.clear();
+        window.draw(sprite); // draw window sprite
+        window.display();
+        windowTexture.clear();
+    }
+
+    return 0;
 }
