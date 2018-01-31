@@ -7,6 +7,8 @@
 #include "display.hpp"
 #include "map.hpp"
 
+void quest_create_menu();
+
 sf::RenderTexture windowTexture; // texture handle for the screen
 sf::Font font; // main font for use
 
@@ -19,6 +21,8 @@ std::vector<item_t> item_vector;
 
 // target ids (all ids are unique)
 int id_current = 0;
+
+int id_next = 1;
 
 sf::Texture textures[NUM_TEXTURES];
 
@@ -91,6 +95,11 @@ bool write_header_file(){
     return true;
 }
 
+void getText(char *message, char *variable, int size){
+    printf("\n %s: ", message);
+    fgets(variable, sizeof(char) * size, stdin);
+    sscanf(variable, "%[^\n]", variable);
+}
 
 int main(){
     srand( time ( NULL ) ); // initalize random
@@ -123,11 +132,13 @@ int main(){
 
     while (true){
         int choice = 0; // choice
+        int edit_mode = 0; // 1 - map, 2 - quest, 3 - item
+        char str[80];
+
         switch (state){
             case 0: // main menu
                 printf("Main menu: \n 1 - View all textures \n 2 - Select a map to view \n 3 - Select a quest to edit \n 4 - Select an item to edit \n 5 - View all items \n 6 - Hide window \n 0 - Save menu \n");
                 scanf("%d", &choice);
-                char str[80];
                 switch (choice){
                     case 0: // exit
                         printf("Save to file? [Y/N]: ");
@@ -185,13 +196,54 @@ int main(){
                         state = 0;
                         break;
                     case 1:
-                        scanf("%d", id_current);
+                        scanf("%d", &id_current);
                         state = 7;
                         break;
                 }
                 break;
+            case 3:
+                printf("Quest edit menu: \n 1 - Create new quest \n 2 - Edit an existing quest \n 0 - Go back \n");
+                scanf("%d", &choice);
+                switch (choice){
+                    case 0:
+                        state = 0;
+                        break;
+                    case 1:
+                        state = 8;
+                        break;
+                }
+                break;
+            case 4:
+                printf("Item edit menu: \n 1 - Create new item \n 2 - Edit an existing item \n 0 - Go back \n");
+                scanf("%d", &choice);
+                switch (choice){
+                    case 0:
+                        state = 0;
+                        break;
+                    case 1:
+                        state = 9;
+                        break;
+                    case 2:
+                        state = 8;
+                        break;
+                }
+                break;
+            case 7:
+                printf("Map edit menu: \n 0 - Go back \n");
+                scanf("%d", &choice);
+                switch (choice){
+                    case 0:
+                        state = 0;
+                        break;
+                }
+                break;
+            case 8:
+                quest_create_menu();
+                state = 0;
+                break;
             default:
-                printf("Error condition of state [%d]", state);
+                printf("Error condition of state [%d] \n", state);
+                system("pause");
         }
 
         // process window events
@@ -214,4 +266,39 @@ int main(){
     }
 
     return 0;
+}
+
+void quest_create_menu(){
+    char tmp[80]; // buffer
+    int n; // buffer
+
+    quest_t quest; // create temp quest
+
+    printf("Quest creation menu \n[Spaces must be dashes] \nEnter quest name: ");
+    scanf("%31s", tmp);
+    for (int i = 0; i < 32; i++){
+        if (tmp[i] == '-'){
+            quest.title[i] = ' ';
+        } else {
+            quest.title[i] = tmp[i];
+        }
+    }
+
+    printf("Enter quest issuer's name: ");
+    scanf("%31s", tmp);
+    for (int i = 0; i < 32; i++){
+        if (tmp[i] == '-'){
+            quest.issuer[i] = ' ';
+        } else {
+            quest.issuer[i] = tmp[i];
+        }
+    }
+
+    printf("Number of stages: ");
+    scanf("%d", &n);
+    quest.num_stages = n;
+
+    printf("Quest so far: \n  Title: %s \n  Issuer: %s \n   Number of Stages: %d \n", quest.title, quest.issuer, quest.num_stages);
+
+    system("PAUSE");
 }
