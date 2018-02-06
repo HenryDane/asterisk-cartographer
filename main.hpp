@@ -9,6 +9,7 @@
 typedef struct coord_t {
     int x;
     int y;
+    int map_index;
 };
 
 typedef struct item_t {
@@ -18,6 +19,13 @@ typedef struct item_t {
     char data[10];
     int data_len;
     int tex_id;
+};
+
+typedef struct crate_t {
+    int x;
+    int y;
+    int num_items;
+    std::vector<item_t> inventory;
 };
 
 // does not yet support giving/taking items
@@ -43,9 +51,9 @@ typedef struct quest_t{
     int title_len;
     char issuer[32];
     int issuer_len;
-    quest_dialogue_block_t * dialogue;
-    quest_validate_ft * validation_functions; // length of list must be same as num_stages
-    quest_assign_ft * assignment_functions; // length of list must be same as num_stages
+    std::vector<quest_dialogue_block_t> dialogue;
+    std::vector<quest_validate_ft> validation_functions; // length of list must be same as num_stages
+    std::vector<quest_assign_ft> assignment_functions; // length of list must be same as num_stages
     int num_stages;
     int reward_exp;
     int reward_credits;
@@ -63,6 +71,27 @@ typedef struct npc_item_t {
     int type;
     char data [16];
     int data_len; // could be one byte
+    int cost;
+};
+
+typedef struct enemy_t {
+    int x;
+    int y;
+    int map_index;
+    int health;
+    int type;
+    bool immortal;
+    int id;
+    int ammunition;
+};
+
+typedef struct portal_t{
+    int x;
+    int y;
+    int x_target;
+    int y_target;
+    int mapid;
+    int mapid_target;
 };
 
 typedef struct npc_t {
@@ -77,6 +106,7 @@ typedef struct npc_t {
     int quest_id; // 0 for no quest, negative numbers trigger cutscene of corresponding number but positive
     int x;
     int y;
+    int map_index;
 };
 
 // function pointer typedefs
@@ -135,15 +165,6 @@ typedef struct entity {
     int type; // 0 = station, 1 = asteroid, 2 = enemy, 3 = debris, 4 = ice station, 6 = planet, 5 = rocket (player), 6 = rocket (other)
     int id;
 };
-
-bool process_window(sf::RenderWindow &window);
-
-extern sf::Font font;
-extern sf::RenderTexture windowTexture;
-
-extern int tile_tex_assoc[NUM_TILES];
-
-extern sf::Texture textures[512];
 
 extern std::vector<item_t> item_vector;
 extern std::vector<npc_t> npc_vector;

@@ -1,304 +1,467 @@
 #include <SFML/Graphics.hpp>
-#include <time.h>
-#include <stdio.h>
+#include <iostream>
 #include <vector>
+#include <string>
 #include <fstream>
+#include <sstream>
+#include <stdio.h>
+#include <time.h>
 #include "main.hpp"
-#include "display.hpp"
-#include "map.hpp"
 
-void quest_create_menu();
+#include <cstdlib>
 
-sf::RenderTexture windowTexture; // texture handle for the screen
-sf::Font font; // main font for use
+using namespace std;
 
-int state = 0; // state handle
-\
-// vectors of various stuff
+sf::Color colors[32];
+
+//vectors of various stuff
 std::vector<map_t> map_vector;
 std::vector<npc_t> npc_vector;
-std::vector<item_t> item_vector;
+std::vector<crate_t> crate_vector;
+std::vector<coord_t> start_vector;
+std::vector<enemy_t> enemy_vector;
 
-// target ids (all ids are unique)
-int id_current = 0;
+int global_map_index = 0;
 
-int id_next = 1;
-
-sf::Texture textures[NUM_TEXTURES];
-
-// reads in the gamefile
-bool read_gamefile(){
-    std::ifstream gamefile ("gamefile.dat");
-
-    // read in game data
-
-    // finish
-    return 0;
-}
-
-// Writes out the gamefile
-bool write_gamefile(){
-    std::ofstream gamefile ("gamefile.dat");
-
-    // write version info
-    gamefile << "! VERSION 0 START \n";
-    gamefile << "# P 0 0 \n";
-    gamefile << "# V 3 \n";
-    gamefile << "! VERSION END \n";
-
-    // write each level quadrant . . .
-    gamefile << "! LEVEL BEGIN \n";
-
-    // if no level data exists, declare this
-    gamefile << "# EMPTY \n";
-
-    // write LM data
-
-    // write LD data
-
-    // write TD data
-    gamefile << "! LEVEL END \n";
-
-    // write all item definitions
-    gamefile << "! ITEM BEGIN \n";
-    for (item_t item : item_vector){
-        gamefile << "# ITEM " << item.id << " BEGIN \n";
-        gamefile << "$ ITEM_TYPE " << item.type << " \n";
-        gamefile << "$ ITEM_USEABLE " << !item.unuseable << " \n";
-        gamefile << "$ ITEM_DATA " << item.data << " \n";
-        gamefile << "$ ITEM_DATA_LEN " << item.data_len << " \n";
-        gamefile << "# ITEM " << item.id << " END \n";
+// fixes MinGW bug
+namespace patch
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str() ;
     }
-
-    // write quest data
-
-    // write NPC data
-
-    // write Map data
-
-    // write cutscene data
-    // (not yet supported in the actual game)
-    // here would be information for animations and music and text for each cutscene
-
-    // write bitmap data
-    // (not yet supported in actual game)
-    // here would be information for textures, images, etc.
-
-    gamefile.close();
-    return true;
 }
 
-//Writes out function prototypes and functions themselves from several provided samples in order to allow quests to change things, and for the npcfunciton lists
-bool write_header_file(){
-    std::ofstream npc_header ("action_functions.h");
+// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+const std::string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d %X", &tstruct);
 
-    return true;
-}
-
-void getText(char *message, char *variable, int size){
-    printf("\n %s: ", message);
-    fgets(variable, sizeof(char) * size, stdin);
-    sscanf(variable, "%[^\n]", variable);
+    return buf;
 }
 
 int main(){
-    srand( time ( NULL ) ); // initalize random
+    // map image
+    sf::Image map_image;
 
-    sf::RenderWindow window(sf::VideoMode(S_WIDTH, S_HEIGHT), "Asterisk Cartographer v0"); // create window
+    // txt files
+    ifstream map_txt;
+    ifstream object_txt;
+    ifstream quest_txt;
 
-    if(!windowTexture.create(S_WIDTH, S_HEIGHT)){ // prepare window texture
-        printf("Failed to build main window texture \n");
+    string prefix = " ";
+    string prefix_alt = " ";
+
+    int num_maps;
+
+    bool build_header = false;
+
+    int num_fire_tex = 0;
+    int num_vegetation_tex = 0;
+    int num_machinery_tex = 0;
+    int num_water_tex = 0;
+    int num_o_machinery = 0;
+
+    int num_objects;
+
+    bool quests_ok = false;
+
+    // open map_txt
+    cout << "[ ] Opening maps.txt" << endl;
+    map_txt.open("artifact\\map_1\\maps.txt");
+    if (!map_txt.is_open()) {
+        cout << "Failed to load map.txt, exiting" << endl;
+        return -1;
+    }
+
+    // first line starts with '!' ?
+    char tmp;
+    map_txt >> tmp;
+    if (tmp != '!'){
+        cout << "ERROR: Failed to find proper header [" << tmp << "]" << endl;
+        return -2;
+    }
+
+    // 'maps.txt' follows '!' ?
+    map_txt >> prefix;
+    if (prefix != "maps.txt") {
+        cout << "ERROR: Failed to find proper header data [" << prefix << "]" << endl;
+        return -3;
+    }
+
+    // read number of maps
+    map_txt >> num_maps;
+    cout << "[M] Expecting " << num_maps << " maps" << endl;
+
+    // read prefix
+    map_txt >> prefix;
+    cout << "[M] Expecting prefix " << prefix << endl;
+
+    // read header boolean
+    map_txt >> build_header;
+    cout << "[M] Build header file: " << ((build_header > 0) ? "true" : "false") << endl;
+
+    cout << "[ ] Finished parsing maps.txt" << endl;
+    map_txt.close();
+
+    cout << "[ ] Opening objects.txt" << endl;
+    object_txt.open("artifact\\map_1\\objects.txt");
+    if (!object_txt.is_open()) {
+        cout << "ERROR: Failed to load objects.txt, exiting" << endl;
+        return -4;
+    }
+
+    // first line starts with '!' ?
+    object_txt >> tmp;
+    if (tmp != '!'){
+        cout << "ERROR: Failed to find proper header [" << tmp << "]" << endl;
         return -5;
     }
 
-    printf("Reading %d texture files \n", NUM_TEXTURES_DEFINED);
-    for (int i = 0; i < NUM_TEXTURES_DEFINED; i++){ // loop through and load textures
-        char tmp[80];
-        sprintf(tmp, "res/%d.png" , i);
-        if (!textures[i].loadFromFile(tmp)){
-            printf("-%d-", i);
-        } else {
-            printf("[%d]", i);
-        }
+    // 'objects.txt' follows '!' ?
+    object_txt >> prefix_alt;
+    if (prefix_alt != "objects.txt") {
+        cout << "ERROR: Failed to find proper header data [" << prefix_alt << "]" << endl;
+        return -6;
     }
-    printf("\n");
 
-    printf("Loading font . . . \n");
-    if (!font.loadFromFile("res/telegrama_raw.ttf")) return -1; // set up font
+    object_txt >> tmp;
+    if (tmp != '!'){
+        cout << "ERROR: Failed to find proper quest header [" << tmp << "]" << endl;
+        return -7;
+    }
 
-    item_vector.push_back((item_t) {12, 3, false, "Flower", 6, 12}); // add a dummy item
+    object_txt >> prefix_alt;
+    cout << "[O] Quest mode is " << prefix_alt << endl;
+    if (prefix_alt == "quests_on"){
+        quests_ok = true;
+    } else if (prefix_alt == "quests_off"){
+        quests_ok = false;
+    } else {
+        cout << "ERROR: Quest mode is invalid " << endl;
+        return -8;
+    }
 
-    char tmp[80]; // temp data
+    object_txt >> prefix_alt;
+    cout << "[O] Found prefix " << prefix_alt << endl;
 
-    while (true){
-        int choice = 0; // choice
-        int edit_mode = 0; // 1 - map, 2 - quest, 3 - item
-        char str[80];
+    if (prefix_alt != prefix){
+        cout << "ERROR: Prefixes differ [" << prefix << "] [" << prefix_alt << "] " << endl;
+        return -9;
+    }
 
-        switch (state){
-            case 0: // main menu
-                printf("Main menu: \n 1 - View all textures \n 2 - Select a map to view \n 3 - Select a quest to edit \n 4 - Select an item to edit \n 5 - View all items \n 6 - Hide window \n 0 - Save menu \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0: // exit
-                        printf("Save to file? [Y/N]: ");
-                        scanf("%2s", str);
-                        if (str[0] == 'Y' || str[0] == 'y'){
-                            printf("Saving . . . \n");
-                            printf("Exiting . . . \n");
-                            return 0;
-                        } else if (str[0] == 'N' || str[0] == 'n'){
-                            printf("Exiting . . . \n");
-                            return 0;
-                        } else {
-                            state = 0;
+    object_txt >> num_fire_tex;
+    object_txt >> num_vegetation_tex;
+    object_txt >> num_machinery_tex;
+    object_txt >> num_water_tex;
+    object_txt >> num_o_machinery;
+    cout << "[O] Expecting textures " << num_fire_tex << " " << num_vegetation_tex << " " << num_machinery_tex << " " << num_water_tex << " " << num_o_machinery << endl;
+
+    object_txt >> num_objects;
+    cout << "[O] Expecting " << num_objects << " objects" << endl;
+
+    bool done = false;
+    if (num_objects > 0) {
+        cout << "[O] Beginning object parsing" << endl;
+        for (int h = 0; h < num_objects; h++){
+            if (done) break;
+            int x, y, type, num_data;
+            object_txt >> x;
+            object_txt >> y;
+            object_txt >> type;
+            object_txt >> num_data;
+            if (x == -1){
+                cout << "[O] Found object with X of " << x << ", moving on to next map . . . " << endl;
+                global_map_index++;
+                object_txt >> num_data; // consume next integer
+            } else if (x == -2) {
+                cout << "[O] Found object with X of " << x << ", objects are disabled . . . " << endl;
+                object_txt >> num_data; // consume next integer
+                done = true;
+                break;
+            }
+            int a;
+            item_t item;
+            npc_item_t nitem;
+            crate_t crate;
+            npc_t npc;
+            enemy_t enemy;
+            portal_t portal;
+
+            //system("PAUSE");
+            switch (type){
+                case 0: // chest
+                    cout << "Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    object_txt >> a; // read object number
+                    crate.x = x;
+                    crate.y = y;
+                    crate.num_items = a;
+                    for (int i = 0; i < a; i++){
+                        object_txt >> a;
+                        item.id = a;
+                        object_txt >> a;
+                        item.type = a;
+                        object_txt >> a;
+                        item.unuseable = (a > 0) ? false : true;
+                        for (int z = 0; z < 10; z++){
+                            item.data[z] = ' ';
                         }
-                        break;
-                    case 1: // view textures
-                        state = 1;
-                        break;
-                    case 2: // select map
-                        state = 2;
-                        break;
-                    case 3: // select quest
-                        state = 3;
-                        break;
-                    case 4: // select item
-                        state = 4;
-                        break;
-                    case 5: // view all items
-                        state = 5;
-                        break;
-                    case 6:
-                        window.setVisible(false);
-                        break;
-                    default: // something else
-                        printf("Unknown Option \n");
-                }
-                break;
-            case 1: // texture menu
-                printf("Texture menu: \n 1 - Edit a texture \n 0 - Go back \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0:
-                        state = 0;
-                        break;
-                    case 1:
-                        state = 6;
-                        break;
-                }
-                break;
-            case 2: // map select menu
-                printf("Map select menu: \n 1 - Enter map id \n 0 - Go back \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0:
-                        state = 0;
-                        break;
-                    case 1:
-                        scanf("%d", &id_current);
-                        state = 7;
-                        break;
-                }
-                break;
-            case 3:
-                printf("Quest edit menu: \n 1 - Create new quest \n 2 - Edit an existing quest \n 0 - Go back \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0:
-                        state = 0;
-                        break;
-                    case 1:
-                        state = 8;
-                        break;
-                }
-                break;
-            case 4:
-                printf("Item edit menu: \n 1 - Create new item \n 2 - Edit an existing item \n 0 - Go back \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0:
-                        state = 0;
-                        break;
-                    case 1:
-                        state = 9;
-                        break;
-                    case 2:
-                        state = 8;
-                        break;
-                }
-                break;
-            case 7:
-                printf("Map edit menu: \n 0 - Go back \n");
-                scanf("%d", &choice);
-                switch (choice){
-                    case 0:
-                        state = 0;
-                        break;
-                }
-                break;
-            case 8:
-                quest_create_menu();
-                state = 0;
-                break;
-            default:
-                printf("Error condition of state [%d] \n", state);
-                system("pause");
-        }
+                        item.data_len = 1;
+                        item.tex_id = 0;
+                        crate.inventory.push_back(item);
+                    }
+                    crate_vector.push_back(crate);
+                    break;
+                case 1: // NPC
+                    cout << "Found NPC (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    object_txt >> npc.id;
+                    object_txt >> npc.health;
+                    object_txt >> npc.type;
+                    object_txt >> npc.inventory_size;
+                    if (npc.inventory_size > 16) {
+                        cout << "WARN: Inventory of NPC: " << npc.id << " is too large (" << npc.inventory_size << ")" << endl;
+                    }
+                    for (int i = 0; i < npc.inventory_size; i++){
+                        for (int z = 0; z < 10; z++){
+                            item.data[z] = ' ';
+                        }
+                        nitem.data_len = 0;
+                        object_txt >> nitem.id;
+                        object_txt >> nitem.type;
+                        object_txt >> nitem.cost;
+                        npc.inventory[i] = nitem;
+                    }
+                    object_txt >> npc.is_merchant;
+                    object_txt >> npc.quest_id;
+                    object_txt >> npc.x;
+                    object_txt >> npc.y;
+                    npc.is_alive = true;
+                    npc.is_ablaze = false;
+                    npc.map_index = global_map_index;
+                    npc_vector.push_back(npc);
+                    break;
+                case 2: // enemy
+                    cout << "Found enemy (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "WARN: Enemies are unsupported" << endl;
+                    object_txt >> enemy.id;
+                    object_txt >> enemy.health;
+                    object_txt >> enemy.type;
+                    object_txt >> enemy.ammunition;
+                    object_txt >> enemy.immortal;
+                    enemy.x = x;
+                    enemy.y = y;
+                    enemy.map_index = global_map_index;
+                    enemy_vector.push_back(enemy);
+                    break;
+                case 3: // portal
+                    cout << "Found type 2 portal (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "WARN: Type 2 portals are unsupported" << endl;
+                    object_txt >> portal.mapid_target;
+                    object_txt >> portal.x_target;
+                    object_txt >> portal.y_target;
+                    portal.x = x;
+                    portal.y = y;
+                    portal.mapid = global_map_index;
+                    break;
+                case 4: // undefined
+                    cout << "Found undefined object (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "WARN: Undefined object encountered " << endl;
+                    break;
+                default:
+                    cout << "ERROR: Found bad object type: " << type << endl;
+                    return -10;
 
-        // process window events
-        sf::Event event;
-        while (window.pollEvent(event)){ // event loop
-            if (event.type == sf::Event::Closed) { // check for close request
-                window.close(); // close window
             }
         }
-
-        windowTexture.display(); // finish up windowTexture
-        const sf::Texture& texture = windowTexture.getTexture(); // build texture object
-        sf::Sprite sprite(texture); // build sprite
-        sprite.setPosition(0,0); // place sprite
-
-        window.clear();
-        window.draw(sprite); // draw window sprite
-        window.display();
-        windowTexture.clear();
+        object_txt.clear();
+        object_txt.ignore(numeric_limits<streamsize>::max(), '\n');
+        object_txt.ignore(1000);
+    } else {
+        cout << "[O] Object lookup disabled, continuing to map parsing" << endl;
     }
+
+    cout << "[ ] Finished parsing of objects.txt " << endl;
+    object_txt.close();
+
+    // set up header file for parsing, or set up hex file
+    ofstream header_file;
+    cout << "[ ] Exporting data to C file" << endl;
+    if (!build_header){
+        cout << "WARN: Binary file output not yet supported, using .c file instead" << endl;
+        build_header = true;
+        // return -11;
+    }
+
+    cout << "[H] Building map_data.h" << endl;
+    header_file.open("map.c");
+    header_file << "// Autogenerated C file from asterisk-cartographer utility" << endl;
+    header_file << "// Built on " << currentDateTime() << endl << endl;
+
+    header_file << "#include \"main.h\"" << endl;
+
+    // header_file << "#undef NUM_MAPS" << endl;
+    header_file << "#define NUM_MAPS " << num_maps << endl << endl; // write macro
+
+    header_file << "#define NUM_WATER_TEX " << num_water_tex << endl; // write macro
+    header_file << "#define NUM_VEGETATION_TEX " << num_vegetation_tex << endl; // write macro
+    header_file << "#define NUM_MACHINERY_TEX " << num_machinery_tex << endl; // write macro
+    header_file << "#define NUM_OVER_MACHINERY_TEX " << num_o_machinery << endl; // write macro
+    header_file << "#define NUM_FIRE_TEX " << num_fire_tex << endl; // write macro
+
+    // add null entity list
+    header_file << endl << "entity_t null_entities_list[4] = { {0, 7, 7, 2}, {0, 7, 8, 3}, {0, 7, 9, 4}, {0, 7, 10, 1} };" << endl;
+
+    // read map key
+    cout << "[ ] Reading map key " << endl;
+    if (!map_image.loadFromFile("artifact//map_key.png")){
+        cout << "ERROR: Failed to load map_key.png" << endl;
+        return -12;
+    }
+
+    sf::Vector2u size_map = map_image.getSize();
+    cout << "[K] Read map key of size x: " << size_map.x << " y: " << size_map.y << endl;
+    if (size_map.x != 32 || size_map.y != 1){
+        cout << "ERROR: Map key is wrong size" << endl;
+    }
+
+    for(int i = 0; i < 32; i++){
+        colors[i] = map_image.getPixel(i, 0);
+    }
+    cout << "[ ] Finished reading map_key" << endl;
+
+    cout << "[ ] Beginning parsing of " << num_maps << " maps " << endl;
+    for (int i = 0; i < num_maps; i++){
+        prefix_alt = "artifact//map_1//";
+        prefix_alt.append(prefix);
+        prefix_alt += patch::to_string(i);
+        prefix_alt.append(".png");
+        if(!map_image.loadFromFile(prefix_alt)){
+            cout << "ERROR: Failed to load map image " << prefix_alt << endl;
+            return -13;
+        }
+
+        size_map = map_image.getSize();
+
+        // set up header for export
+        header_file << endl << "// GENERATED MAP " << prefix << i << endl;
+
+        header_file << "int " << prefix << i << "_map_data[] = {";
+
+        cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
+
+        cout << "Writing tile data . . . " << endl;
+        for (int j = 0; j < size_map.x ; j++){
+            for (int k = 0; k < size_map.y; k++){
+                sf::Color color_tmp = map_image.getPixel(j, k);
+
+                // search
+                int m = 0;
+                for (; m < 32; m++){
+                    if (colors[m] == color_tmp){
+                        break; // break if color match found
+                    }
+                }
+
+                if (build_header){
+                    header_file << m << ", "; // write tile type
+                }
+
+            }
+            header_file << endl; // prettify output
+        }
+        header_file << "0};" << endl;
+        header_file << "map_t " << prefix << i << "_map = {" << size_map.x << ", " << size_map.y << "," << prefix << i << "_map_data ";
+        header_file << ", 0, null_entities_list};" << endl;
+
+        cout << "Writing starting coordinates" << endl;
+        header_file << "coord_t " << prefix << i << "_start = {0, 0};" << endl;
+
+        cout << "Writing NPC definitions" << endl;
+        header_file << "npc_t " << prefix << i << "_npc ( unsigned int x, unsigned int y ){" << endl; // define function def
+        header_file << "    npc_t npc_null = {-1, 0, 0, 0, {-1, 0, ' ', 0}, false, false, false, 0, -1, -1 };" << endl;
+
+        // define npc_t instances
+        for (int i = 0; i < npc_vector.size(); i++){
+            npc_t localnpc = npc_vector.at(i);
+            header_file << "    npc_t npc_" << i << " = {" << localnpc.id << ", " << localnpc.health << ", " << localnpc.type << ", ";
+            header_file << localnpc.inventory_size << ", {";
+
+            // write out inventory
+            for (int j = 0; j < localnpc.inventory_size; j++){
+                // start npc_item_t definition
+                header_file << "{" << localnpc.inventory[j].id << ", " << localnpc.inventory[j].type << ", \"";
+
+                // copy over string data
+                for (int v = 0; v < localnpc.inventory[j].data_len; v++){
+                    header_file << localnpc.inventory[j].data[v];
+                }
+
+                // empty string
+                if (localnpc.inventory[j].data_len == 0){
+                    header_file << " ";
+                }
+
+                // end npc_item_t definition
+                header_file << "\", " << localnpc.inventory[j].data_len << ", " << localnpc.inventory[j].cost << "}";
+                if (j != localnpc.inventory_size -1 ){
+                    header_file << ", ";
+                }
+            }
+
+            // close inventory definition
+            header_file << "}, " << ((localnpc.is_merchant) ? "true" : "false") << ", " << ((localnpc.is_ablaze) ? "true" : "false") << ", " << ((localnpc.is_alive) ? "true" : "false") << ", " << localnpc.quest_id << ", " << localnpc.x << ", " << localnpc.y << "};" << endl;
+        }
+
+        header_file << endl;
+
+        for(int i = 0; i < npc_vector.size(); i++){
+            npc_t localnpc = npc_vector.at(i);
+            header_file << "    if( x == " << localnpc.x << " && y == " << localnpc.y << ") return npc_" << i << ";" << endl;
+        }
+        header_file << endl << "    return npc_null;" << endl;
+        header_file << "}" << endl << endl;// close map definition
+    }
+
+    // write NPCs.
+    cout << "[M] Generating registry" << endl;
+    header_file << "int master_index = 0;" << endl;
+    header_file << "map_t cached_map;" << endl;
+    header_file << "map_master rogue_map_master[NUM_MAPS];" << endl;
+    header_file << "npc_function_ft rogue_npc_master[NUM_MAPS];" << endl;
+    header_file << endl;
+
+    cout << "[M] Generating startup procedure" << endl;
+    header_file << "void init_maps(){" << endl;
+    for (int i = 0; i < num_maps; i++){
+        header_file << "    rogue_map_master[" << i <<"] = (map_master) { " << prefix << i << "_map, " << prefix << i << "_start };" << endl;
+        header_file << "    rogue_npc_master[" << i <<"] = "<< prefix << i << "_npc;" << endl;
+    }
+
+    header_file << "}" << endl << endl;
+
+    cout << "[M] Adding on util function" << endl;
+
+    header_file << "void load_map(int index){" << endl;
+    header_file << "    master_index = index;" << endl;
+    header_file << "    cached_map = rogue_map_master[index].mapdat;" << endl;
+    header_file << "    character_x = rogue_map_master[index].coord.x;" << endl;
+    header_file << "    character_y = rogue_map_master[index].coord.y;" << endl;
+    header_file << "    cached_map.num_entities = rogue_map_master[index].mapdat.num_entities;" << endl;
+    header_file << "    num_entities = rogue_map_master[index].mapdat.num_entities;" << endl;
+    header_file << "    printf(\"Loading map %d with start of (%d, %d) and %d entities \\n\", index, rogue_map_master[index].coord.x, rogue_map_master[index].coord.y, rogue_map_master[index].mapdat.num_entities);" << endl;
+    header_file << "    for (int i = 0; i < rogue_map_master[index].mapdat.num_entities; i++){" << endl;
+    header_file << "        entities[i] = rogue_map_master[index].mapdat.entities[i];" << endl;
+    header_file << "    }" << endl;
+    header_file << "}" << endl;
+
+    header_file.close();
 
     return 0;
-}
-
-void quest_create_menu(){
-    char tmp[80]; // buffer
-    int n; // buffer
-
-    quest_t quest; // create temp quest
-
-    printf("Quest creation menu \n[Spaces must be dashes] \nEnter quest name: ");
-    scanf("%31s", tmp);
-    for (int i = 0; i < 32; i++){
-        if (tmp[i] == '-'){
-            quest.title[i] = ' ';
-        } else {
-            quest.title[i] = tmp[i];
-        }
-    }
-
-    printf("Enter quest issuer's name: ");
-    scanf("%31s", tmp);
-    for (int i = 0; i < 32; i++){
-        if (tmp[i] == '-'){
-            quest.issuer[i] = ' ';
-        } else {
-            quest.issuer[i] = tmp[i];
-        }
-    }
-
-    printf("Number of stages: ");
-    scanf("%d", &n);
-    quest.num_stages = n;
-
-    printf("Quest so far: \n  Title: %s \n  Issuer: %s \n   Number of Stages: %d \n", quest.title, quest.issuer, quest.num_stages);
-
-    system("PAUSE");
 }
