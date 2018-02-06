@@ -82,7 +82,7 @@ int main(int argc, char *argv[]){
         map_dir_name = argv[1];
     } else if (argc == 1){
         cout << "[ ] Assuming map to directory is \"map_0\\\"" << endl;
-        map_dir_name = "map_0";
+        map_dir_name = "map_1";
     } else {
         cout << "ERROR: I can't understand your arguments" << endl;
         return -20;
@@ -371,8 +371,10 @@ int main(int argc, char *argv[]){
         cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
 
         cout << "    Writing tile data . . . " << endl;
-        for (int j = 0; j < size_map.x ; j++){
-            for (int k = 0; k < size_map.y; k++){
+        //for (int j = 0; j < size_map.x ; j++){
+        //    for (int k = 0; k < size_map.y; k++){
+        for (int j = size_map.x - 1; j > 0; j--){
+            for (int k = size_map.y -1; k > 0; k--){
                 sf::Color color_tmp = map_image.getPixel(j, k);
 
                 // search
