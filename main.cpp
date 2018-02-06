@@ -21,6 +21,8 @@ std::vector<crate_t> crate_vector;
 std::vector<coord_t> start_vector;
 std::vector<enemy_t> enemy_vector;
 
+std::string map_dir_name = " ";
+
 int global_map_index = 0;
 
 // fixes MinGW bug
@@ -47,7 +49,7 @@ const std::string currentDateTime() {
     return buf;
 }
 
-int main(){
+int main(int argc, char *argv[]){
     // map image
     sf::Image map_image;
 
@@ -74,8 +76,20 @@ int main(){
     bool quests_ok = false;
 
     // open map_txt
+    cout << "=== Asterisk Cartographer Utility V1 ===" << endl;
+    if (argc == 2){
+        cout << "[ ] Map directory is \"" << argv[1] << "\"" << endl;
+        map_dir_name = argv[1];
+    } else if (argc == 1){
+        cout << "[ ] Assuming map to directory is \"map_0\\\"" << endl;
+        map_dir_name = "map_0";
+    } else {
+        cout << "ERROR: I can't understand your arguments" << endl;
+        return -20;
+    }
+
     cout << "[ ] Opening maps.txt" << endl;
-    map_txt.open("artifact\\map_1\\maps.txt");
+    map_txt.open("artifact\\" + map_dir_name + "\\maps.txt");
     if (!map_txt.is_open()) {
         cout << "Failed to load map.txt, exiting" << endl;
         return -1;
@@ -112,7 +126,7 @@ int main(){
     map_txt.close();
 
     cout << "[ ] Opening objects.txt" << endl;
-    object_txt.open("artifact\\map_1\\objects.txt");
+    object_txt.open("artifact\\" + map_dir_name + "\\objects.txt");
     if (!object_txt.is_open()) {
         cout << "ERROR: Failed to load objects.txt, exiting" << endl;
         return -4;
@@ -198,7 +212,7 @@ int main(){
             //system("PAUSE");
             switch (type){
                 case 0: // chest
-                    cout << "Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "    Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     object_txt >> a; // read object number
                     crate.x = x;
                     crate.y = y;
@@ -220,7 +234,7 @@ int main(){
                     crate_vector.push_back(crate);
                     break;
                 case 1: // NPC
-                    cout << "Found NPC (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "    Found NPC (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     object_txt >> npc.id;
                     object_txt >> npc.health;
                     object_txt >> npc.type;
@@ -248,7 +262,7 @@ int main(){
                     npc_vector.push_back(npc);
                     break;
                 case 2: // enemy
-                    cout << "Found enemy (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "    Found enemy (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     cout << "WARN: Enemies are unsupported" << endl;
                     object_txt >> enemy.id;
                     object_txt >> enemy.health;
@@ -261,7 +275,7 @@ int main(){
                     enemy_vector.push_back(enemy);
                     break;
                 case 3: // portal
-                    cout << "Found type 2 portal (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "    Found type 2 portal (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     cout << "WARN: Type 2 portals are unsupported" << endl;
                     object_txt >> portal.mapid_target;
                     object_txt >> portal.x_target;
@@ -271,7 +285,7 @@ int main(){
                     portal.mapid = global_map_index;
                     break;
                 case 4: // undefined
-                    cout << "Found undefined object (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    cout << "    Found undefined object (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     cout << "WARN: Undefined object encountered " << endl;
                     break;
                 default:
@@ -338,7 +352,7 @@ int main(){
 
     cout << "[ ] Beginning parsing of " << num_maps << " maps " << endl;
     for (int i = 0; i < num_maps; i++){
-        prefix_alt = "artifact//map_1//";
+        prefix_alt = "artifact/" + map_dir_name + "/";
         prefix_alt.append(prefix);
         prefix_alt += patch::to_string(i);
         prefix_alt.append(".png");
@@ -356,7 +370,7 @@ int main(){
 
         cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
 
-        cout << "Writing tile data . . . " << endl;
+        cout << "    Writing tile data . . . " << endl;
         for (int j = 0; j < size_map.x ; j++){
             for (int k = 0; k < size_map.y; k++){
                 sf::Color color_tmp = map_image.getPixel(j, k);
@@ -380,10 +394,10 @@ int main(){
         header_file << "map_t " << prefix << i << "_map = {" << size_map.x << ", " << size_map.y << "," << prefix << i << "_map_data ";
         header_file << ", 0, null_entities_list};" << endl;
 
-        cout << "Writing starting coordinates" << endl;
+        cout << "    Writing starting coordinates" << endl;
         header_file << "coord_t " << prefix << i << "_start = {0, 0};" << endl;
 
-        cout << "Writing NPC definitions" << endl;
+        cout << "    Writing NPC definitions" << endl;
         header_file << "npc_t " << prefix << i << "_npc ( unsigned int x, unsigned int y ){" << endl; // define function def
         header_file << "    npc_t npc_null = {-1, 0, 0, 0, {-1, 0, ' ', 0}, false, false, false, 0, -1, -1 };" << endl;
 
