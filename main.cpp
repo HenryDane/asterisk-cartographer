@@ -8,6 +8,7 @@
 #include <time.h>
 #include "main.hpp"
 
+#include <SFML/System.hpp>
 #include <cstdlib>
 
 using namespace std;
@@ -52,6 +53,7 @@ const std::string currentDateTime() {
 int main(int argc, char *argv[]){
     // map image
     sf::Image map_image;
+    sf::Texture map_texture;
 
     // txt files
     ifstream map_txt;
@@ -361,6 +363,30 @@ int main(int argc, char *argv[]){
             return -13;
         }
 
+        cout << "    Transforming map " << endl;
+
+        // ugly hack #498739479
+        map_image.flipHorizontally();
+        sf::RenderTexture renderwindow_temp;
+        renderwindow_temp.create(map_image.getSize().x, map_image.getSize().y);
+        sf::RectangleShape rshape;
+        rshape.setSize(sf::Vector2f(map_image.getSize().x, map_image.getSize().y));
+        rshape.setPosition(0, map_image.getSize().y);
+        sf::Texture tmp_texture;
+        tmp_texture.loadFromImage(map_image);
+        rshape.setTexture(&tmp_texture);
+        rshape.setRotation(-90);
+        renderwindow_temp.clear();
+        renderwindow_temp.draw(rshape);
+        renderwindow_temp.getTexture().copyToImage();
+        renderwindow_temp.display();
+        map_image = renderwindow_temp.getTexture().copyToImage();
+
+        // debug
+        // std::string strtmp = "img" + patch::to_string(i) + ".png";
+        // map_image.saveToFile(strtmp);
+
+        // compute size
         size_map = map_image.getSize();
 
         // set up header for export
@@ -371,10 +397,9 @@ int main(int argc, char *argv[]){
         cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
 
         cout << "    Writing tile data . . . " << endl;
-        //for (int j = 0; j < size_map.x ; j++){
-        //    for (int k = 0; k < size_map.y; k++){
-        for (int j = size_map.x - 1; j > 0; j--){
-            for (int k = size_map.y -1; k > 0; k--){
+        coord_t startpos = {-1, -1, -1};
+        for (int j = 0; j < size_map.x; j++){
+            for (int k = 0; k < size_map.y; k++){
                 sf::Color color_tmp = map_image.getPixel(j, k);
 
                 // search
@@ -389,15 +414,30 @@ int main(int argc, char *argv[]){
                     header_file << m << ", "; // write tile type
                 }
 
+                if (m == 5){ // if spawn point found
+                    if (startpos.map_index > -1){
+                        cout << "WARN: Spawn already set, moving to " << k << ", " << j << endl;
+                    } else {
+                        cout << "    Spawn identified at " << k << ", " << j << endl;
+                    }
+                    startpos.x = k;
+                    startpos.y = j;
+                    startpos.map_index = global_map_index;
+                }
+
             }
             header_file << endl; // prettify output
+        }
+
+        if (startpos.map_index == -1){
+            cout << "WARN: Failed to identify a spawn point " << endl;
         }
         header_file << "0};" << endl;
         header_file << "map_t " << prefix << i << "_map = {" << size_map.x << ", " << size_map.y << "," << prefix << i << "_map_data ";
         header_file << ", 0, null_entities_list};" << endl;
 
-        cout << "    Writing starting coordinates" << endl;
-        header_file << "coord_t " << prefix << i << "_start = {0, 0};" << endl;
+        cout << "    Writing starting coordinates (" << startpos.x << ", " << startpos.y << ")" << endl;
+        header_file << "coord_t " << prefix << i << "_start = {" << startpos.x << ", " << startpos.y << "};" << endl;
 
         cout << "    Writing NPC definitions" << endl;
         header_file << "npc_t " << prefix << i << "_npc ( unsigned int x, unsigned int y ){" << endl; // define function def
@@ -481,3 +521,4 @@ int main(int argc, char *argv[]){
 
     return 0;
 }
+
