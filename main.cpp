@@ -85,7 +85,7 @@ int main(int argc, char *argv[]){
         map_dir_name = argv[1];
     } else if (argc == 1){
         cout << "[ ] Assuming map to directory is \"map_0\\\"" << endl;
-        map_dir_name = "map_0";
+        map_dir_name = "map_2";
     } else {
         cout << "ERROR: I can't understand your arguments" << endl;
         return -20;
@@ -282,8 +282,7 @@ int main(int argc, char *argv[]){
                     enemy_vector.push_back(enemy);
                     break;
                 case 3: // portal
-                    cout << "    Found type 2 portal (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
-                    cout << "WARN: Type 2 portals are unsupported" << endl;
+                    cout << "    Found portal (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     object_txt >> portal.mapid_target;
                     object_txt >> portal.x_target;
                     object_txt >> portal.y_target;
@@ -400,6 +399,8 @@ int main(int argc, char *argv[]){
         size_map.x = size_map.y;
         size_map.y = x;
 
+        cout << "    Size X: " << size_map.x << " Y: " << size_map.y << endl;
+
         // set up header for export
         header_file << endl << "// GENERATED MAP " << prefix << i << endl;
 
@@ -455,9 +456,10 @@ int main(int argc, char *argv[]){
         header_file << "    npc_t npc_null = {-1, 0, 0, 0, {-1, 0, ' ', 0}, false, false, false, 0, -1, -1 };" << endl;
 
         // define npc_t instances
-        for (int i = 0; i < npc_vector.size(); i++){
-            npc_t localnpc = npc_vector.at(i);
-            header_file << "    npc_t npc_" << i << " = {" << localnpc.id << ", " << localnpc.health << ", " << localnpc.type << ", ";
+        for (int m = 0; m < npc_vector.size(); m++){
+            npc_t localnpc = npc_vector.at(m);
+            if(localnpc.map_index = i) continue;
+            header_file << "    npc_t npc_" << m << " = {" << localnpc.id << ", " << localnpc.health << ", " << localnpc.type << ", ";
             header_file << localnpc.inventory_size << ", {";
 
             // write out inventory
@@ -490,6 +492,7 @@ int main(int argc, char *argv[]){
 
         for(int s = 0; s < npc_vector.size(); s++){
             npc_t localnpc = npc_vector.at(s);
+            if(localnpc.map_index = i) continue;
             header_file << "    if( x == " << localnpc.x << " && y == " << localnpc.y << " ) return npc_" << s << ";" << endl;
         }
         header_file << endl << "    return npc_null;" << endl;
@@ -500,13 +503,18 @@ int main(int argc, char *argv[]){
         header_file << "    portal_t portal_null = {0, 0, -1};" << endl;
         for (int s = 0; s < portal_vector.size(); s++ ){
             portal_t portallocal = portal_vector.at(s);
-            header_file << "    portal_t portal_" << s << " = {" << portallocal.x_target << ", " << portallocal.y_target << ", " << portallocal.mapid << " };" << endl;
+            if (portallocal.mapid == i){
+                header_file << "    // " << portallocal.mapid << " " << i << endl;
+                header_file << "    portal_t portal_" << s << " = {" << portallocal.x_target << ", " << portallocal.y_target << ", " << portallocal.mapid_target << " };" << endl;
+            }
         }
 
         // set up return statements
         for (int s = 0; s < portal_vector.size(); s++ ){
             portal_t portallocal = portal_vector.at(s);
-            header_file << "    if ( x == " << portallocal.x << " && y == " << portallocal.y << " ) return portal_" << s << ";" << endl;
+            if (portallocal.mapid == i){
+                header_file << "    if ( x == " << portallocal.x << " && y == " << portallocal.y << " ) return portal_" << s << ";" << endl;
+            }
         }
 
         header_file << "    return portal_null;" << endl;
