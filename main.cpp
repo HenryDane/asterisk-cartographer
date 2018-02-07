@@ -189,15 +189,16 @@ int main(int argc, char *argv[]){
         cout << "[O] Beginning object parsing" << endl;
         for (int h = 0; h < num_objects; h++){
             if (done) break;
-            int x, y, type, num_data;
+            int x, y, type, num_data, temp;
             object_txt >> x;
             object_txt >> y;
             object_txt >> type;
             object_txt >> num_data;
             if (x == -1){
-                cout << "[O] Found object with X of " << x << ", moving on to next map . . . " << endl;
+                object_txt >> temp; // consume next integer
+                cout << "[O] Found map index increment indicator (" << x << "," << y << "," << type << "," << num_data << "," << temp << "), moving on to next map . . . " << endl;
                 global_map_index++;
-                object_txt >> num_data; // consume next integer
+                continue;
             } else if (x == -2) {
                 cout << "[O] Found object with X of " << x << ", objects are disabled . . . " << endl;
                 object_txt >> num_data; // consume next integer
@@ -242,6 +243,7 @@ int main(int argc, char *argv[]){
                     object_txt >> npc.health;
                     object_txt >> npc.type;
                     object_txt >> npc.inventory_size;
+                    cout << "    NPC ID: " << npc.id << " HEALTH: " << npc.health << " TYPE: " << npc.type << " SIZE: " << npc.inventory_size;
                     if (npc.inventory_size > 16) {
                         cout << "WARN: Inventory of NPC: " << npc.id << " is too large (" << npc.inventory_size << ")" << endl;
                     }
@@ -253,12 +255,14 @@ int main(int argc, char *argv[]){
                         object_txt >> nitem.id;
                         object_txt >> nitem.type;
                         object_txt >> nitem.cost;
+                        cout << " (Item ID: " << nitem.id << " TYPE: " << nitem.type << " COST: " << nitem.cost << ")";
                         npc.inventory[i] = nitem;
                     }
                     object_txt >> npc.is_merchant;
                     object_txt >> npc.quest_id;
                     object_txt >> npc.x;
                     object_txt >> npc.y;
+                    cout << " Merchant: " << npc.is_merchant << " QID: " << npc.quest_id << " X: " << npc.x << " Y: " << npc.y << endl;
                     npc.is_alive = true;
                     npc.is_ablaze = false;
                     npc.map_index = global_map_index;
@@ -293,7 +297,7 @@ int main(int argc, char *argv[]){
                     cout << "WARN: Undefined object encountered " << endl;
                     break;
                 default:
-                    cout << "ERROR: Found bad object type: " << type << endl;
+                    cout << "ERROR: Found bad object type: " << type  << "(" << num_data << ")" << endl;
                     return -10;
 
             }
@@ -371,10 +375,10 @@ int main(int argc, char *argv[]){
         // ugly hack #498739479
         map_image.flipHorizontally();
         sf::RenderTexture renderwindow_temp;
-        renderwindow_temp.create(map_image.getSize().x, map_image.getSize().y);
+        renderwindow_temp.create(max(map_image.getSize().x, map_image.getSize().y), max(map_image.getSize().x, map_image.getSize().y)); // its for debug ok??
         sf::RectangleShape rshape;
         rshape.setSize(sf::Vector2f(map_image.getSize().x, map_image.getSize().y));
-        rshape.setPosition(0, map_image.getSize().y);
+        rshape.setPosition(0, map_image.getSize().x);
         sf::Texture tmp_texture;
         tmp_texture.loadFromImage(map_image);
         rshape.setTexture(&tmp_texture);
@@ -385,8 +389,16 @@ int main(int argc, char *argv[]){
         renderwindow_temp.display();
         map_image = renderwindow_temp.getTexture().copyToImage();
 
+        std::string filedatdebugname = "map_" + patch::to_string(i) + ".png";
+        map_image.saveToFile(filedatdebugname);
+
         // compute size
         size_map = map_image.getSize();
+
+        // awful hack #98737987
+        int x = size_map.x;
+        size_map.x = size_map.y;
+        size_map.y = x;
 
         // set up header for export
         header_file << endl << "// GENERATED MAP " << prefix << i << endl;
