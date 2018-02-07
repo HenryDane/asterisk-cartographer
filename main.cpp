@@ -21,6 +21,7 @@ std::vector<npc_t> npc_vector;
 std::vector<crate_t> crate_vector;
 std::vector<coord_t> start_vector;
 std::vector<enemy_t> enemy_vector;
+std::vector<portal_t> portal_vector;
 
 std::string map_dir_name = " ";
 
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]){
         map_dir_name = argv[1];
     } else if (argc == 1){
         cout << "[ ] Assuming map to directory is \"map_0\\\"" << endl;
-        map_dir_name = "map_1";
+        map_dir_name = "map_0";
     } else {
         cout << "ERROR: I can't understand your arguments" << endl;
         return -20;
@@ -285,6 +286,7 @@ int main(int argc, char *argv[]){
                     portal.x = x;
                     portal.y = y;
                     portal.mapid = global_map_index;
+                    portal_vector.push_back(portal);
                     break;
                 case 4: // undefined
                     cout << "    Found undefined object (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
@@ -321,6 +323,7 @@ int main(int argc, char *argv[]){
     header_file << "// Built on " << currentDateTime() << endl << endl;
 
     header_file << "#include \"main.h\"" << endl;
+    header_file << "#include <stdio.h>" << endl << endl;
 
     // header_file << "#undef NUM_MAPS" << endl;
     header_file << "#define NUM_MAPS " << num_maps << endl << endl; // write macro
@@ -381,10 +384,6 @@ int main(int argc, char *argv[]){
         renderwindow_temp.getTexture().copyToImage();
         renderwindow_temp.display();
         map_image = renderwindow_temp.getTexture().copyToImage();
-
-        // debug
-        // std::string strtmp = "img" + patch::to_string(i) + ".png";
-        // map_image.saveToFile(strtmp);
 
         // compute size
         size_map = map_image.getSize();
@@ -477,13 +476,31 @@ int main(int argc, char *argv[]){
 
         header_file << endl;
 
-        for(int i = 0; i < npc_vector.size(); i++){
-            npc_t localnpc = npc_vector.at(i);
-            header_file << "    if( x == " << localnpc.x << " && y == " << localnpc.y << ") return npc_" << i << ";" << endl;
+        for(int s = 0; s < npc_vector.size(); s++){
+            npc_t localnpc = npc_vector.at(s);
+            header_file << "    if( x == " << localnpc.x << " && y == " << localnpc.y << " ) return npc_" << s << ";" << endl;
         }
         header_file << endl << "    return npc_null;" << endl;
-        header_file << "}" << endl << endl;// close map definition
+        header_file << "}" << endl;// close NPC definition
+
+        cout << "    Writing Portal definitions" << endl;
+        header_file << "portal_t " << prefix << i << "_portal( unsigned int x, unsigned int y ){" << endl;
+        header_file << "    portal_t portal_null = {0, 0, -1};" << endl;
+        for (int s = 0; s < portal_vector.size(); s++ ){
+            portal_t portallocal = portal_vector.at(s);
+            header_file << "    portal_t portal_" << s << " = {" << portallocal.x_target << ", " << portallocal.y_target << ", " << portallocal.mapid << " };" << endl;
+        }
+
+        // set up return statements
+        for (int s = 0; s < portal_vector.size(); s++ ){
+            portal_t portallocal = portal_vector.at(s);
+            header_file << "    if ( x == " << portallocal.x << " && y == " << portallocal.y << " ) return portal_" << s << ";" << endl;
+        }
+
+        header_file << "    return portal_null;" << endl;
+        header_file << "}" << endl << endl;
     }
+
 
     // write NPCs.
     cout << "[M] Generating registry" << endl;
@@ -491,6 +508,7 @@ int main(int argc, char *argv[]){
     header_file << "map_t cached_map;" << endl;
     header_file << "map_master rogue_map_master[NUM_MAPS];" << endl;
     header_file << "npc_function_ft rogue_npc_master[NUM_MAPS];" << endl;
+    header_file << "portal_function_ft rogue_portal_master[NUM_MAPS];" << endl;
     header_file << endl;
 
     cout << "[M] Generating startup procedure" << endl;
@@ -498,6 +516,7 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < num_maps; i++){
         header_file << "    rogue_map_master[" << i <<"] = (map_master) { " << prefix << i << "_map, " << prefix << i << "_start };" << endl;
         header_file << "    rogue_npc_master[" << i <<"] = "<< prefix << i << "_npc;" << endl;
+        header_file << "    rogue_portal_master[" << i <<"] = "<< prefix << i << "_portal;" << endl;
     }
 
     header_file << "}" << endl << endl;
