@@ -187,7 +187,7 @@ int main(int argc, char *argv[]){
     bool done = false;
     if (num_objects > 0) {
         cout << "[O] Beginning object parsing" << endl;
-        for (int h = 0; h < num_objects; h++){
+        for (int h = 0; h < 1000; h++){
             if (done) break;
             int x, y, type, num_data, temp;
             object_txt >> x;
@@ -258,7 +258,8 @@ int main(int argc, char *argv[]){
                         cout << " (Item ID: " << nitem.id << " TYPE: " << nitem.type << " COST: " << nitem.cost << ")";
                         npc.inventory[i] = nitem;
                     }
-                    object_txt >> npc.is_merchant;
+                    object_txt >> a;
+                    npc.is_merchant = (a > 0) ? true : false;
                     object_txt >> npc.quest_id;
                     object_txt >> npc.x;
                     object_txt >> npc.y;
@@ -286,6 +287,7 @@ int main(int argc, char *argv[]){
                     object_txt >> portal.mapid_target;
                     object_txt >> portal.x_target;
                     object_txt >> portal.y_target;
+                    cout << "    Portal goes to  X:" << portal.x_target << " Y:" << portal.y_target << " MAP:" << portal.mapid_target << endl;
                     portal.x = x;
                     portal.y = y;
                     portal.mapid = global_map_index;
@@ -541,22 +543,9 @@ int main(int argc, char *argv[]){
 
     header_file << "}" << endl << endl;
 
-    cout << "[M] Adding on util function" << endl;
-
-    header_file << "void load_map(int index){" << endl;
-    header_file << "    master_index = index;" << endl;
-    header_file << "    cached_map = rogue_map_master[index].mapdat;" << endl;
-    header_file << "    character_x = rogue_map_master[index].coord.x;" << endl;
-    header_file << "    character_y = rogue_map_master[index].coord.y;" << endl;
-    header_file << "    cached_map.num_entities = rogue_map_master[index].mapdat.num_entities;" << endl;
-    header_file << "    num_entities = rogue_map_master[index].mapdat.num_entities;" << endl;
-    header_file << "    printf(\"Loading map %d with start of (%d, %d) and %d entities \\n\", index, rogue_map_master[index].coord.x, rogue_map_master[index].coord.y, rogue_map_master[index].mapdat.num_entities);" << endl;
-    header_file << "    for (int i = 0; i < rogue_map_master[index].mapdat.num_entities; i++){" << endl;
-    header_file << "        entities[i] = rogue_map_master[index].mapdat.entities[i];" << endl;
-    header_file << "    }" << endl;
-    header_file << "}" << endl;
-
     header_file.close();
+
+    cout << "[ ] Done" << endl;
 
     return 0;
 }
