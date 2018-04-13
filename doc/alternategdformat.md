@@ -64,7 +64,14 @@ For all undefined tiles, `<num data>` should be 1 and `<data>` should be 0. This
 
 ## Quests.txt
 Must open with `! quests.txt`.
-For second line, put `! all_is_null` as quests are not yet supported
+For second line, put `! all_is_null` if no quests are to be used, otherwise put `! quests_on <number of quests>`.
+Next, list the number of lines total.
+Then, for each line, put `<line id> <number of words> <the whole line with spaces>`, and repeat for as many lines as there are.
+After entering all of the lines, the quest definitions begin. Quests are defined as `Q <id> <num_data> <data>`. The data section works like this:
+- Data is comprised of a string of integers
+- Positive integers indicate lines to be displayed
+- If a negative integer is encountered it will signal that the player has a choice. It will be multiplied my -1, and then the result will be counted as the number of options, and the next number of integers will be read as string values corresponding with the options. A maximum of 4 options is allowed. If one of the string values to be read as an option is negative, the program will exit. 
+- If a negative integer less than -4 is encountered then the program will do one of two things. The program will interpret this value to be `- (validation_function_id + 4)` and will solve for the given validation function. (Validation functions must return true in order for the quest to progress.) 
 
 ## Example:
 ```

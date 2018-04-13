@@ -6,6 +6,8 @@
 #define S_HEIGHT 600
 #define S_WIDTH 800
 
+extern unsigned int DEBUG_LEVEL;
+
 typedef struct coord_t {
     int x;
     int y;
@@ -64,6 +66,20 @@ typedef struct quest_active_t{
     quest_t quest;
     int block_index;
     bool complete; // if true, will be removed at some point
+};
+
+typedef struct mquest_t{
+    int id;
+    std::string title; // assemble to char title [len];
+    std::string issuer; // assemble to char issuer [len];
+    int stages;
+    std::vector<int> text_address;
+    std::vector<int> image_address;
+    std::vector<int> verify_address;
+    std::vector<int> action_address;
+    int exp_reward;
+    int credit_reward;
+    item_t item_reward;
 };
 
 typedef struct npc_item_t {
@@ -169,3 +185,28 @@ typedef struct entity {
 extern std::vector<item_t> item_vector;
 extern std::vector<npc_t> npc_vector;
 extern std::vector<map_t> map_vector;
+extern std::vector<crate_t> crate_vector;
+extern std::vector<coord_t> start_vector;
+extern std::vector<enemy_t> enemy_vector;
+extern std::vector<portal_t> portal_vector;
+
+// quest stuff
+extern std::vector<std::string> quest_text_vector;
+extern std::vector<mquest_t> quest_vector;
+
+extern std::string map_dir_name;
+
+extern sf::Color colors[32];
+
+// fixes MinGW bug
+namespace patch
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str();
+    }
+}
+
+const std::string currentDateTime();
