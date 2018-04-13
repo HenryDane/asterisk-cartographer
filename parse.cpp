@@ -359,6 +359,8 @@ int do_rogue_map(){
             return -13;
         }
 
+        sf::Vector2u old_size = map_image.getSize();
+
         if (DEBUG_LEVEL > 2) cout << "    Transforming map " << endl;
 
         // ugly hack #498739479
@@ -398,11 +400,15 @@ int do_rogue_map(){
 
         if (DEBUG_LEVEL > 1) cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
 
+        cout << "OLD WIDTH: " << old_size.x << " OLD HEIGHT: " << old_size.y << endl;
+
+
         if (DEBUG_LEVEL > 2) cout << "    Writing tile data . . . " << endl;
         coord_t startpos = {-1, -1, -1};
-        for (int j = 0; j < size_map.x; j++){
-            for (int k = 0; k < size_map.y; k++){
+        for (int j = 0; j < /*size_map.x*/ (int) old_size.y ; j++){
+            for (int k = 0; k < /*size_map.y*/ (int) old_size.x ; k++){
                 sf::Color color_tmp = map_image.getPixel(j, k);
+                //printf("%d, %d \n", j, k);
 
                 // search
                 int m = 0;
@@ -435,7 +441,7 @@ int do_rogue_map(){
             cout << "WARN: Failed to identify a spawn point " << endl;
         }
         header_file << "0};" << endl;
-        header_file << "map_t " << prefix << i << "_map = {" << size_map.x << ", " << size_map.y << "," << prefix << i << "_map_data ";
+        header_file << "map_t " << prefix << i << "_map = {" << old_size.y << ", " << old_size.x << "," << prefix << i << "_map_data ";
         header_file << ", 0, null_entities_list};" << endl;
 
         if (DEBUG_LEVEL > 2) cout << "    Writing starting coordinates (" << startpos.x << ", " << startpos.y << ")" << endl;
