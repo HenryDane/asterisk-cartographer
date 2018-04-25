@@ -182,6 +182,15 @@ typedef struct entity {
     int id;
 };
 
+typedef struct entity_o_t{
+    int id;
+    int x;
+    int y;
+    int vx;
+    int vy;
+    int type;
+};
+
 extern std::vector<item_t> item_vector;
 extern std::vector<npc_t> npc_vector;
 extern std::vector<map_t> map_vector;

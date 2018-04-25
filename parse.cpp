@@ -49,8 +49,8 @@ int parse(){
     a = do_rogue_map();
     if (a < 0) return a;
 
-    a = do_quests();
-    if (a < 0) return a;
+    //a = do_quests();
+    //if (a < 0) return a;
 
     cout << "[ ] Done" << endl;
 
@@ -359,7 +359,7 @@ int do_rogue_map(){
             return -13;
         }
 
-        sf::Vector2u old_size = map_image.getSize();
+        //sf::Vector2u old_size = map_image.getSize();
 
         if (DEBUG_LEVEL > 2) cout << "    Transforming map " << endl;
 
@@ -400,15 +400,14 @@ int do_rogue_map(){
 
         if (DEBUG_LEVEL > 1) cout << "[M] Loaded map " << prefix_alt << " with width " << size_map.x << " and height " << size_map.y << endl;
 
-        cout << "OLD WIDTH: " << old_size.x << " OLD HEIGHT: " << old_size.y << endl;
+        //cout << "OLD WIDTH: " << old_size.x << " OLD HEIGHT: " << old_size.y << endl;
 
 
         if (DEBUG_LEVEL > 2) cout << "    Writing tile data . . . " << endl;
         coord_t startpos = {-1, -1, -1};
-        for (int j = 0; j < /*size_map.x*/ (int) old_size.y ; j++){
-            for (int k = 0; k < /*size_map.y*/ (int) old_size.x ; k++){
+        for (int j = 0; j < size_map.x; j++){
+            for (int k = 0; k < size_map.y ; k++){
                 sf::Color color_tmp = map_image.getPixel(j, k);
-                //printf("%d, %d \n", j, k);
 
                 // search
                 int m = 0;
@@ -441,7 +440,7 @@ int do_rogue_map(){
             cout << "WARN: Failed to identify a spawn point " << endl;
         }
         header_file << "0};" << endl;
-        header_file << "map_t " << prefix << i << "_map = {" << old_size.y << ", " << old_size.x << "," << prefix << i << "_map_data ";
+        header_file << "map_t " << prefix << i << "_map = {" << size_map.y << ", " << size_map.x << "," << prefix << i << "_map_data ";
         header_file << ", 0, null_entities_list};" << endl;
 
         if (DEBUG_LEVEL > 2) cout << "    Writing starting coordinates (" << startpos.x << ", " << startpos.y << ")" << endl;
@@ -454,7 +453,10 @@ int do_rogue_map(){
         // define npc_t instances
         for (int m = 0; m < npc_vector.size(); m++){
             npc_t localnpc = npc_vector.at(m);
+            //cout << "NPC IS: " << localnpc.id << " (" << localnpc.x << ", " << localnpc.y << ", " << localnpc.map_index << ") " << localnpc.quest_id << endl;
+            //cout << "    MAP_INDEX = " << i << endl;
             if(localnpc.map_index != i) continue;
+            //cout << "    WROTE NPC WITH " << i << " and " << m << endl;
             header_file << "    npc_t npc_" << m << " = {" << localnpc.id << ", " << localnpc.health << ", " << localnpc.type << ", ";
             header_file << localnpc.inventory_size << ", {";
 
@@ -493,6 +495,24 @@ int do_rogue_map(){
         }
         header_file << endl << "    return npc_null;" << endl;
         header_file << "}" << endl;// close NPC definition
+
+        if (DEBUG_LEVEL > 2) cout << "    Writing enemy definitions" << endl;
+        header_file << "entity_t " << prefix << i << "_enemy(void){" << endl;
+        header_file << "    entity_t enemy_null = {-1, -1, -1, -1, -1, -1};" << endl << endl;
+        for(int z = 0; z < enemy_vector.size(); z++){
+            enemy_t enemy = enemy_vector.at(z);
+            if (enemy.map_index == i){
+                header_file << "    entity_t enemy_" << z << " = {" << enemy.id << ", " << enemy.x << ", " << enemy.y << ", 0, 0, " << enemy.type << "};" << endl;
+            }
+        }
+        for(int z = 0; z < enemy_vector.size(); z++){
+            enemy_t enemy = enemy_vector.at(z);
+            if (enemy.map_index == i){
+                header_file << "    if ( x == " << enemy.x << " && y == " << enemy.y << " ) return portal_" << z << ";" << endl;
+            }
+        }
+        header_file << "    return enemy_null;" << endl;
+        header_file << "}" << endl;
 
         if (DEBUG_LEVEL > 2) cout << "    Writing Portal definitions" << endl;
         header_file << "portal_t " << prefix << i << "_portal( unsigned int x, unsigned int y ){" << endl;
@@ -601,14 +621,18 @@ int do_quests(){
     int num_text_objects = 0;
     quest_txt >> num_text_objects;
 
+    int q_id;
     for (int i = 0; i < num_text_objects; i++){
         int num_blocks = 0;
+        q_id = -1;
+        quest_txt >> q_id;
         quest_txt >> num_blocks;
-        quest_txt >> num_blocks;
+        cout << "NUM T OBJ " << num_blocks << endl;
         std::string s = " ";
         for (int j = 0; j < num_blocks; j++){
             quest_txt >> s;
             quest_text_vector.push_back(s);
+            cout << "OBJECT: " << s << endl;
         }
     }
 
@@ -616,12 +640,57 @@ int do_quests(){
         char a;
         quest_txt >> a;
         if (a != 'Q'){
-            cout << "ERROR: Bad quest definition, exiting" << endl;
+            cout << "ERROR: Bad quest definition, exiting " << endl;
             return -16;
         }
 
         int num_things;
+        quest_txt >> num_things;
 
+        mquest_t q_tmp;
+        q_tmp.id = q_id; // needs to be add to Q and D definitions
+        q_tmp.issuer = "None";
+ //       q_tmp.issuer_len = 4;
+
+        int stages = 0; // incremented as list is parsed
+
+        for (int j = 0; j < num_things; j++){
+            int a;
+            quest_txt >> a;
+
+            if (a > 0){
+
+            }
+        }
+
+        q_tmp.stages = stages;
+
+        quest_vector.push_back(q_tmp);
+    }
+
+    // some sort of error being thrown over here about out of bounds for variables
+    for(int i = 0; i < num_quests; i++){
+        char a;
+        quest_txt >> a;
+        if (a != 'D'){
+            cout << "ERROR: Bad extended quest definition, exiting " << endl;
+            return -17;
+        }
+
+        int n_id = 0;
+        quest_txt >> n_id;
+
+        int j = 0;
+        for ( ; j < quest_vector.size(); j++){
+            if (quest_vector.at(j).id == n_id) break;
+        }
+
+        string strtmp = " ";
+        quest_txt >> quest_vector.at(j).issuer;
+        quest_txt >> quest_vector.at(j).title;
+        quest_txt >> quest_vector.at(j).exp_reward;
+        quest_txt >> quest_vector.at(j).credit_reward;
+        /*quest_vector.at(j).item_reward;*/ // unsupported
     }
 
     return 0;

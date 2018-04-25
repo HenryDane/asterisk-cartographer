@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
         map_dir_name = argv[1];
     } else if (argc == 1){
         cout << "[ ] Assuming map directory is \"map_0\\\"" << endl;
-        map_dir_name = "map_2";
+        map_dir_name = "map_2"; // temporary modification
     } else if (argc == 3){
         cout << "[ ] Map directory is \"" << argv[1] << "\"" << endl;
         map_dir_name = argv[1];
