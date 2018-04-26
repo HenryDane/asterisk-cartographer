@@ -13,7 +13,7 @@
 #include <SFML/System.hpp>
 #include <cstdlib>
 
-unsigned int DEBUG_LEVEL = 3;
+unsigned int DEBUG_LEVEL = 0;
 
 using namespace std;
 

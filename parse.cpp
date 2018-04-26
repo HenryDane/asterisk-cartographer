@@ -418,7 +418,22 @@ int do_rogue_map(){
                 }
 
                 if (build_header){
-                    header_file << m << ", "; // write tile type
+                    if (m != 8){
+                        header_file << m << ", "; // write tile type
+                    } else {
+                        header_file << 0 << ", ";
+                        cout << "WARN: Moved map-defined entity into dynamic entity area!" << endl;
+                        enemy_t enemy_tmp;
+                        enemy_tmp.x = j;
+                        enemy_tmp.y = k;
+                        enemy_tmp.type = 11;
+                        enemy_tmp.ammunition = 10000;
+                        enemy_tmp.health = 1000;
+                        enemy_tmp.immortal = false;
+                        enemy_tmp.map_index = i;
+                        enemy_tmp.id = rand() % 1000;
+                        enemy_vector.push_back(enemy_tmp);
+                    }
                 }
 
                 if (m == 5){ // if spawn point found
@@ -441,7 +456,7 @@ int do_rogue_map(){
         }
         header_file << "0};" << endl;
         header_file << "map_t " << prefix << i << "_map = {" << size_map.y << ", " << size_map.x << "," << prefix << i << "_map_data ";
-        header_file << ", 0, null_entities_list};" << endl;
+        header_file << ", " << enemy_vector.size() << ", null_entities_list /* should not be used */};" << endl;
 
         if (DEBUG_LEVEL > 2) cout << "    Writing starting coordinates (" << startpos.x << ", " << startpos.y << ")" << endl;
         header_file << "coord_t " << prefix << i << "_start = {" << startpos.x << ", " << startpos.y << "};" << endl;
@@ -497,18 +512,22 @@ int do_rogue_map(){
         header_file << "}" << endl;// close NPC definition
 
         if (DEBUG_LEVEL > 2) cout << "    Writing enemy definitions" << endl;
-        header_file << "entity_t " << prefix << i << "_enemy(void){" << endl;
+        // void ..._enemy(entity_t * entity, int index)
+        header_file << "void " << prefix << i << "_enemy(entity_t * entity, int index){" << endl;
         header_file << "    entity_t enemy_null = {-1, -1, -1, -1, -1, -1};" << endl << endl;
+        //cout << "enemy_vector_size: " << enemy_vector.size() << endl;
         for(int z = 0; z < enemy_vector.size(); z++){
             enemy_t enemy = enemy_vector.at(z);
             if (enemy.map_index == i){
-                header_file << "    entity_t enemy_" << z << " = {" << enemy.id << ", " << enemy.x << ", " << enemy.y << ", 0, 0, " << enemy.type << "};" << endl;
+                header_file << "    entity_t enemy_" << z << " = {" << enemy.id << ", " << enemy.y << ", " << enemy.x << ", 0, 0, " << enemy.type << "};" << endl;
             }
         }
+        int entities_this = 0;
         for(int z = 0; z < enemy_vector.size(); z++){
             enemy_t enemy = enemy_vector.at(z);
             if (enemy.map_index == i){
-                header_file << "    if ( x == " << enemy.x << " && y == " << enemy.y << " ) return portal_" << z << ";" << endl;
+                header_file << "    if ( index == " << z << " ) {" << endl << "        * entity = enemy_" << z << ";" << endl << "        return;" << endl << "    }" << endl;
+                entities_this++;
             }
         }
         header_file << "    return enemy_null;" << endl;
@@ -545,6 +564,7 @@ int do_rogue_map(){
     header_file << "map_master rogue_map_master[NUM_MAPS];" << endl;
     header_file << "npc_function_ft rogue_npc_master[NUM_MAPS];" << endl;
     header_file << "portal_function_ft rogue_portal_master[NUM_MAPS];" << endl;
+    header_file << "enemy_function_ft rogue_enemy_master[NUM_MAPS];" << endl;
     header_file << endl;
 
     if (DEBUG_LEVEL > 1) cout << "[M] Generating startup procedure" << endl;
@@ -553,6 +573,7 @@ int do_rogue_map(){
         header_file << "    rogue_map_master[" << i <<"] = (map_master) { " << prefix << i << "_map, " << prefix << i << "_start };" << endl;
         header_file << "    rogue_npc_master[" << i <<"] = "<< prefix << i << "_npc;" << endl;
         header_file << "    rogue_portal_master[" << i <<"] = "<< prefix << i << "_portal;" << endl;
+        header_file << "    rogue_enemy_master[" << i << "] = " << prefix << i << "_enemy;" << endl;
     }
 
     header_file << "}" << endl << endl;
