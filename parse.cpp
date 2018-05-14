@@ -530,7 +530,7 @@ int do_rogue_map(){
                 entities_this++;
             }
         }
-        header_file << "    return enemy_null;" << endl;
+        header_file << "    * entity = enemy_null;" << endl;
         header_file << "}" << endl;
 
         if (DEBUG_LEVEL > 2) cout << "    Writing Portal definitions" << endl;

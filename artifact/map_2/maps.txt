@@ -1,0 +1,4 @@
+! maps.txt
+5
+map_
+true

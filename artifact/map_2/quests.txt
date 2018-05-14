@@ -1,0 +1,2 @@
+! quests.txt
+! all_is_null
