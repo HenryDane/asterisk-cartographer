@@ -1,7 +1,7 @@
 ! quests.txt
 ! quests_on
 1
-STR:
+STR 6
 Why hello there by brudda.
 Do you know de wae?.
 Where are we.
