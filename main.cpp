@@ -88,5 +88,9 @@ int main(int argc, char *argv[]){
         return -20;
     }
 
+    // debug
+    DEBUG_LEVEL = 1000;
+    map_dir_name = "map_3";
+
     parse();
 }

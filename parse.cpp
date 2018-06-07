@@ -21,6 +21,7 @@ sf::Texture map_texture;
 ifstream map_txt;
 ifstream object_txt;
 ifstream quest_txt;
+ofstream quest_file;
 
 string prefix = " ";
 string prefix_alt = " ";
@@ -49,8 +50,8 @@ int parse(){
     a = do_rogue_map();
     if (a < 0) return a;
 
-    //a = do_quests();
-    //if (a < 0) return a;
+    a = do_quests();
+    if (a < 0) return a;
 
     cout << "[ ] Done" << endl;
 
@@ -89,15 +90,12 @@ int do_top(){
     map_txt >> prefix;
     if (DEBUG_LEVEL > 1) cout << "[M] Expecting prefix " << prefix << endl;
 
-    // read header boolean
-    map_txt >> build_header;
-    if (DEBUG_LEVEL > 1) cout << "[M] Build header file: " << ((build_header > 0) ? "true" : "false") << endl;
-
     if (DEBUG_LEVEL > 1) cout << "[ ] Finished parsing maps.txt" << endl;
     map_txt.close();
 
     return 0;
 }
+
     /*
     Read object definitions
     */
@@ -192,12 +190,13 @@ int do_object(){
             //system("PAUSE");
             switch (type){
                 case 0: // chest
-                    if (DEBUG_LEVEL > 2) cout << "    Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
+                    //if (DEBUG_LEVEL > 2) cout << "    Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << endl;
                     object_txt >> a; // read object number
                     crate.x = x;
                     crate.y = y;
                     crate.num_items = a;
-                    for (int i = 0; i < a; i++){
+                    if (DEBUG_LEVEL > 2) cout << "    Found chest (" << type << ") at " << x << ", " << y << " with num_data of " << num_data << " and " << a << " items " << endl;
+                    for (int i = 0; i < crate.num_items; i++){
                         object_txt >> a;
                         item.id = a;
                         object_txt >> a;
@@ -211,6 +210,8 @@ int do_object(){
                         item.tex_id = 0;
                         crate.inventory.push_back(item);
                     }
+                    object_txt >> crate.id;
+                    crate.mapid = global_map_index;
                     crate_vector.push_back(crate);
                     break;
                 case 1: // NPC
@@ -461,6 +462,32 @@ int do_rogue_map(){
         if (DEBUG_LEVEL > 2) cout << "    Writing starting coordinates (" << startpos.x << ", " << startpos.y << ")" << endl;
         header_file << "coord_t " << prefix << i << "_start = {" << startpos.x << ", " << startpos.y << "};" << endl;
 
+        if (DEBUG_LEVEL > 2) cout << "    Writing chest definitions" << endl;
+        header_file << "chest_t " << prefix << i << "_chest (unsigned int x, unsigned int y){ " << endl;
+        header_file << "    chest_t chest_null = {-1, 0, 0, {-1, 0, ' ', 0}, 0};" << endl;
+        for(int m = 0; m < crate_vector.size(); m++){
+            crate_t crate = crate_vector.at(m);
+
+            if (crate.mapid != i) continue;
+
+            //(chest_t) {1932, 64, 32, {{125, 3, " ", 0, 50}, {4132, 4, " ", 0, 25}}, 2};
+            header_file << "    chest_t chest_" << m << " = (chest_t) { " << crate.id << ", " << crate.x << ", " << crate.y << ", {";
+            for(int h = 0; h < crate.num_items; h++){
+                header_file << "{" << crate.inventory.at(h).id << ", " << crate.inventory.at(h).type << ", " << crate.inventory.at(h).unuseable << ", \"" << crate.inventory.at(h).data << "\", " << crate.inventory.at(h).data_len << "}";
+
+                if (h + 1 < crate.num_items){
+                    header_file << ", ";
+                }
+            }
+
+            header_file << "}, " << crate.num_items << "};" << endl;
+            //if (x == 64 && y == 32) return chest_0;
+            header_file << "    if (x == " << crate.x << " && y == " << crate.y << ") return chest_" << m << ";" << endl;
+
+        }
+        header_file << "    return chest_null;" << endl;
+        header_file << "}" << endl;
+
         if (DEBUG_LEVEL > 2) cout << "    Writing NPC definitions" << endl;
         header_file << "npc_t " << prefix << i << "_npc ( unsigned int x, unsigned int y ){" << endl; // define function def
         header_file << "    npc_t npc_null = {-1, 0, 0, 0, {-1, 0, ' ', 0}, false, false, false, 0, -1, -1 };" << endl;
@@ -559,21 +586,40 @@ int do_rogue_map(){
 
     // write NPCs.
     if (DEBUG_LEVEL > 1) cout << "[M] Generating registry" << endl;
+    /*
+    int master_index = 0;
+    map_t cached_map;
+    map_master rogue_map_master[NUM_MAPS];
+    npc_function_ft rogue_npc_master[NUM_MAPS];
+    portal_function_ft rogue_portal_master[NUM_MAPS];
+    enemy_function_ft rogue_enemy_master[NUM_MAPS];
+    chest_function_ft rogue_chest_master[NUM_MAPS];
+    int chests_consumed[NUM_CHESTS_MAX];
+    */
     header_file << "int master_index = 0;" << endl;
     header_file << "map_t cached_map;" << endl;
     header_file << "map_master rogue_map_master[NUM_MAPS];" << endl;
     header_file << "npc_function_ft rogue_npc_master[NUM_MAPS];" << endl;
     header_file << "portal_function_ft rogue_portal_master[NUM_MAPS];" << endl;
     header_file << "enemy_function_ft rogue_enemy_master[NUM_MAPS];" << endl;
+    header_file << "chest_function_ft rogue_chest_master[NUM_MAPS];" << endl;
+    header_file << "int chests_consumed[NUM_CHESTS_MAX];" << endl;
     header_file << endl;
 
     if (DEBUG_LEVEL > 1) cout << "[M] Generating startup procedure" << endl;
     header_file << "void init_maps(){" << endl;
+    header_file << "    for (int i = 0; i < NUM_CHESTS_MAX; i++){" << endl;
+    header_file << "        chests_consumed[i] = -1;" << endl;
+    header_file << "    } " << endl;
+    header_file << "    for (int i = 0; i < NUM_QUESTS_MAX; i++){ " << endl;
+    header_file << "        quests_consumed[i] = -1; " << endl;
+    header_file << "    }" << endl;
     for (int i = 0; i < num_maps; i++){
         header_file << "    rogue_map_master[" << i <<"] = (map_master) { " << prefix << i << "_map, " << prefix << i << "_start };" << endl;
         header_file << "    rogue_npc_master[" << i <<"] = "<< prefix << i << "_npc;" << endl;
         header_file << "    rogue_portal_master[" << i <<"] = "<< prefix << i << "_portal;" << endl;
         header_file << "    rogue_enemy_master[" << i << "] = " << prefix << i << "_enemy;" << endl;
+        header_file << "    rogue_chest_master[" << i << "] = " << prefix << i << "_chest;" << endl;
     }
 
     header_file << "}" << endl << endl;
@@ -628,7 +674,7 @@ int do_quests(){
     }
 
     quest_txt >> tstring;
-    if (tstring == "all_is_null") {
+    if (tstring == "all_is_null" || tstring == "quests_off") {
         if (DEBUG_LEVEL > 1) cout << "[Q] Quests are off" << endl;
         cout << "[ ] Done" << endl;
         return 0;
@@ -636,83 +682,189 @@ int do_quests(){
         cout << "[Q] Quests are on" << endl;
     }
 
+    quest_file.open("quest.c");
+    quest_file << "// Autogenerated C file from asterisk-cartographer utility" << endl;
+    quest_file << "// Built on " << currentDateTime() << endl << endl;
+
     int num_quests = 0;
     quest_txt >> num_quests;
+    quest_file << "#define NUM_QUESTS_MAX " << num_quests << endl;
 
-    int num_text_objects = 0;
-    quest_txt >> num_text_objects;
+    // define quest string stuff
+    // Todo
 
-    int q_id;
-    for (int i = 0; i < num_text_objects; i++){
-        int num_blocks = 0;
-        q_id = -1;
-        quest_txt >> q_id;
-        quest_txt >> num_blocks;
-        cout << "NUM T OBJ " << num_blocks << endl;
-        std::string s = " ";
-        for (int j = 0; j < num_blocks; j++){
-            quest_txt >> s;
-            quest_text_vector.push_back(s);
-            cout << "OBJECT: " << s << endl;
-        }
-    }
-
+    fstream def_file;
+    string issuer;
+    string title;
+    int credit_reward;
+    int exp_reward;
+    item_m_t item_reward;
+    string str;
     for (int i = 0; i < num_quests; i++){
-        char a;
-        quest_txt >> a;
-        if (a != 'Q'){
-            cout << "ERROR: Bad quest definition, exiting " << endl;
-            return -16;
+        cout << "Building quest " << i << " of " << num_quests << endl;
+        // compile each quest
+        char tmpt[80];
+        // artifact\\" + map_dir_name + "\\quests.txt
+        sprintf(tmpt, "artifact/map_3/quest/%d.txt", i);
+        cout << "Loading def file from " << tmpt << endl;
+        def_file.open(tmpt);
+        if (!def_file.is_open()) {
+            cout << "ERROR: Failed to load def file, exiting" << endl;
+            return -101;
+        }
+        def_file >> title;
+        def_file >> issuer;
+        def_file >> credit_reward;
+        def_file >> exp_reward;
+        def_file >> str;
+        cout << "Quest " << i << " has title " << title << " and is by " << issuer << " for " << credit_reward << " credits and " << exp_reward << endl;
+        if (str != "Item"){
+            cout << "Bad reward item header; expected [Item], found [" << str << "]" << endl;
+            return 181;
+        }
+        def_file >> item_reward.id;
+        def_file >> item_reward.type;
+        def_file >> item_reward.unuseable;
+        def_file >> item_reward.data;
+
+
+
+        int num_stages;
+        def_file >> num_stages;
+
+        cout << num_stages << endl;
+
+        quest_file << "// Quest #" << i << " : " << title << endl;
+
+        def_file >> str;
+        if (str != "STT"){
+            cout << "Bad quest header; expected [STT], found [" << str << "]" << endl;
+            return 102;
         }
 
-        int num_things;
-        quest_txt >> num_things;
 
-        mquest_t q_tmp;
-        q_tmp.id = q_id; // needs to be add to Q and D definitions
-        q_tmp.issuer = "None";
- //       q_tmp.issuer_len = 4;
+        num_stages += 1; // because reasons, dont ask;
 
-        int stages = 0; // incremented as list is parsed
+        cout << num_stages << " " << str << endl;
 
-        for (int j = 0; j < num_things; j++){
-            int a;
-            quest_txt >> a;
-
-            if (a > 0){
-
-            }
+        def_file >> str;
+        if (str != "DAT"){
+            cout << "Bad quest data declaration; expected [DAT], found [" << str << "]" << endl;
+            return 103;
         }
+        quest_file << "int quest_" << i << "_data[] = {";
 
-        q_tmp.stages = stages;
+        for(int i = 0; i < num_stages; i++){
+            int a = 0;
+            def_file >> a;
+            quest_file << a;
+            if (i + 1 < num_stages) quest_file << ",";
+        }
+        quest_file << "};" << endl;
 
-        quest_vector.push_back(q_tmp);
+        def_file >> str;
+        if (str != "VER"){
+            cout << "Bad quest verification declaration; expected [VER], found [" << str << "]" << endl;
+            return 103;
+        }
+        quest_file << "int quest_" << i << "_verify[] = {";
+        for(int i = 0; i < num_stages; i++){
+            int a = 0;
+            def_file >> a;
+            quest_file << a;
+            if (i + 1 < num_stages) quest_file << ",";
+        }
+        quest_file << "};" << endl;
+
+        def_file >> str;
+        if (str != "ACT"){
+            cout << "Bad quest action declaration; expected [ACT], found [" << str << "]" << endl;
+            return 103;
+        }
+        quest_file << "int quest_" << i << "_action[] = {";
+        for(int i = 0; i < num_stages; i++){
+            int a = 0;
+            def_file >> a;
+            quest_file << a;
+            if (i + 1 < num_stages) quest_file << ",";
+        }
+        quest_file << "};" << endl;
+
+        def_file >> str;
+        if (str != "BMP"){
+            cout << "Bad quest bitmap declaration; expected [BMP], found [" << str << "]" << endl;
+            return 103;
+        }
+        quest_file << "int quest_" << i << "_bmp[] = {";
+        for(int i = 0; i < num_stages; i++){
+            int a = 0;
+            def_file >> a;
+            quest_file << a;
+            if (i + 1 < num_stages) quest_file << ",";
+        }
+        quest_file << "};" << endl;
+
+        def_file >> str;
+        if (str != "TXT"){
+            cout << "Bad quest text declaration; expected [TXT], found [" << str << "]" << endl;
+            return 103;
+        }
+        quest_file << "int quest_" << i << "_text[] = {";
+        for(int i = 0; i < num_stages; i++){
+            int a = 0;
+            def_file >> a;
+            quest_file << a;
+            if (i + 1 < num_stages) quest_file << ",";
+        }
+        quest_file << "};" << endl;
+
+        def_file >> str;
+        if (str != "END"){
+            cout << "Expected end of quest data, found [" << str << "] instead" << endl;
+            return 183;
+        }
+        num_stages--; // fix what we did earlier, dont ask questions
+        // print actual quest struct
+        quest_file << "mquest_t quest_" << i << " = {" << i + 1 << "," << endl;
+        quest_file << "    " << issuer << "," << endl;
+        quest_file << "    " << title << "," << endl;
+        quest_file << "    " << num_stages << "," << endl;
+        quest_file << "    " << credit_reward << "," << endl;
+        quest_file << "    " << exp_reward << "," << endl;
+        quest_file << "    {" << item_reward.id << ", " << item_reward.type << ", " << ((item_reward.unuseable > 0) ? "true" : "false") << ", 1}," << endl;
+        quest_file << "    quest_" << i << "_data," << endl;
+        quest_file << "    quest_" << i << "_verify," << endl;
+        quest_file << "    quest_" << i << "_action," << endl;
+        quest_file << "    quest_" << i << "_bmp," << endl;
+        quest_file << "    quest_" << i << "_text};" << endl;
+
+        def_file.close();
     }
 
-    // some sort of error being thrown over here about out of bounds for variables
+    cout << "Finishing up quest file . . ." << endl;
+    quest_file << "mquest_t quest_registry[ NUM_QUESTS_MAX + 1];" << endl;
+    quest_file << "int num_active_quests;" << endl;
+    quest_file << "mquest_a_t quest_a_registry[ NUM_QUESTS_MAX + 1];" << endl;
+    quest_file << "quest_validate_function_ft quest_validate_master[NUM_QUESTS_MAX + 1];" << endl;
+    quest_file << "quest_action_function_ft quest_action_master [NUM_QUESTS_MAX + 1];" << endl;
+    quest_file << "cutscene_t cutscene_registry[NUM_CUTSCENES];" << endl;
+    quest_file << endl;
+
+    quest_file << "void init_cutscenes(){" << endl;
+    quest_file << "    int cutscene_0_delays[4] = {1000, 1000, 2000, 50};" << endl;
+    quest_file << "    int cutscene_0_text[4] = {0, 5, 10, 15};" << endl;
+    quest_file << "    cutscene_t cutscene_0 = {1, 4, 0, cutscene_0_delays, 0, cutscene_0_text};" << endl;
+    quest_file << endl;
+    quest_file << "    cutscene_registry[0] = cutscene_0;" << endl;
+    quest_file << "}" << endl;
+
+    quest_file << "void init_quests(){" << endl;
     for(int i = 0; i < num_quests; i++){
-        char a;
-        quest_txt >> a;
-        if (a != 'D'){
-            cout << "ERROR: Bad extended quest definition, exiting " << endl;
-            return -17;
-        }
-
-        int n_id = 0;
-        quest_txt >> n_id;
-
-        int j = 0;
-        for ( ; j < quest_vector.size(); j++){
-            if (quest_vector.at(j).id == n_id) break;
-        }
-
-        string strtmp = " ";
-        quest_txt >> quest_vector.at(j).issuer;
-        quest_txt >> quest_vector.at(j).title;
-        quest_txt >> quest_vector.at(j).exp_reward;
-        quest_txt >> quest_vector.at(j).credit_reward;
-        /*quest_vector.at(j).item_reward;*/ // unsupported
+        quest_file << "    quest_registry[" << i + 1 << "] = quest_" << i << ";" << endl;
     }
+    quest_file << "}";
+
+    quest_file.close();
 
     return 0;
 }

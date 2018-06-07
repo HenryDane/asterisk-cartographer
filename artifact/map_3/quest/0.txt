@@ -1,0 +1,14 @@
+Test_Quest
+Test_Issuer
+1000
+5000
+Item 14332 5 0 Item_Name_Here
+6
+STT
+DAT 0 -1 -1 -1 6 0 -1
+VER 0 0 0 0 0 0 0
+ACT 0 0 0 0 0 0 0
+BMP 5 5 3 2 4 5 1
+TXT 0 6 25 30 41 72 3
+END
+ 

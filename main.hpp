@@ -23,11 +23,21 @@ typedef struct item_t {
     int tex_id;
 };
 
+// updated version
+typedef struct item_m_t{
+    int id;
+    int type;
+    bool unuseable;
+    std::string data;
+};
+
 typedef struct crate_t {
     int x;
     int y;
     int num_items;
     std::vector<item_t> inventory;
+    int mapid;
+    int id;
 };
 
 // does not yet support giving/taking items
